@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .widget {
+            width: 300px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .quote {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .image {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="widget">
+        <div class="quote" id="quote">"La tua citazione di oggi apparirà qui"</div>
+        <img src="https://via.placeholder.com/300" alt="Immagine del giorno" class="image" id="quoteImage">
+    </div>
+
+    <script>
+        const quotes = [
+            {
+                text: "Be passionate in everything you do.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+            {
+                text: "If you stop learning, quit.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+ 	 {
+                text: "Be curious.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "Step out of your comfort zone.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "Fake it until you make it.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "Move fast and break things.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "Actions produce information.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "Perfect is the enemy of good.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "Listen, Learn, Lead.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	  {
+                text: "You can only change what is measurable.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+	{
+                text: "The harder I work, the luckier I get.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            },
+            {
+                text: "Ask for feedback when you haven’t received any in a while.",
+                image: "https://images.app.goo.gl/3z7sBmSMNF4e9BxcA"
+            }
+        ];
+
+        function changeQuote() {
+            const randomIndex = Math.floor(Math.random() * quotes.length);
+            const quote = quotes[randomIndex];
+            document.getElementById('quote').textContent = quote.text;
+            document.getElementById('quoteImage').src = quote.image;
+        }
+
+        // Cambia citazione e immagine ogni giorno (86400000 ms = 24 ore)
+        setInterval(changeQuote, 86400000);
+
+        // Mostra la prima citazione all'avvio
+        changeQuote();
+    </script>
+</body>
+</html>
