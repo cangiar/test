@@ -518,6 +518,29 @@ body {
   text-transform: uppercase;
 }
 
+/* ultima spiaggia: il CSV in chiaro, da selezionare e copiare a mano */
+.dump {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dump[hidden] { display: none; }
+.dump textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--petrolio);
+  background: rgba(17, 75, 95, .05);
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  padding: 10px 12px;
+  resize: none;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .tally {
   margin: 0;
   font-weight: 900;

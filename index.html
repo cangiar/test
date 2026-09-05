@@ -124,7 +124,13 @@
     <p class="tally"><span id="admin-count">0</span></p>
     <p class="note" id="admin-last"></p>
     <p class="note note--fine" id="admin-export"></p>
-    <button class="cta cta--scuro" type="button" id="admin-csv">Scarica CSV</button>
+    <button class="cta cta--scuro" type="button" id="admin-csv">Esporta CSV</button>
+    <p class="note note--fine" id="admin-esito"></p>
+    <button class="quiet" type="button" id="admin-testo">Mostra il testo</button>
+    <div class="dump" id="admin-dump" hidden>
+      <textarea id="admin-dump-testo" readonly rows="7" spellcheck="false"></textarea>
+      <button class="quiet" type="button" id="admin-copia">Copia tutto</button>
+    </div>
     <button class="quiet" type="button" id="admin-wipe">Svuota elenco</button>
     <button class="quiet" type="button" id="admin-close">Chiudi</button>
   </div>

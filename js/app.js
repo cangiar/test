@@ -80,19 +80,50 @@
     return '﻿' + righe.join('\r\n') + '\r\n';   // BOM per Excel
   }
 
-  function scarica(list) {
+  function nomeFile() {
     var d = new Date();
     var p = function (n) { return (n < 10 ? '0' : '') + n; };
-    var nome = 'bim-leads-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' +
-               p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.csv';
-    var url = URL.createObjectURL(new Blob([csv(list)], { type: 'text/csv;charset=utf-8' }));
+    return 'bim-leads-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' +
+           p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.csv';
+  }
+
+  function scaricaBlob(blob, nome) {
+    var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
     a.download = nome;
+    a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  /* Su iPad, con la app installata da Home, un download avviato da script
+   * spesso non fa niente. Il foglio di condivisione invece funziona e porta
+   * dritto ad AirDrop, Mail o File, quindi si prova prima quello. */
+  function esporta(list, esito) {
+    var nome = nomeFile();
+    var testo = csv(list);
+    var blob = new Blob([testo], { type: 'text/csv;charset=utf-8' });
+    var file = null;
+    try { file = new File([blob], nome, { type: 'text/csv' }); } catch (e) {}
+
+    if (file && navigator.share && navigator.canShare &&
+        navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: nome }).then(function () {
+        esito(true, 'Condiviso');
+      }, function (err) {
+        // se l'utente annulla non e' un errore e non si ripiega sul download
+        if (err && err.name === 'AbortError') { esito(false, ''); return; }
+        scaricaBlob(blob, nome);
+        esito(true, 'Scaricato in File');
+      });
+      return;
+    }
+
+    scaricaBlob(blob, nome);
+    esito(true, 'Scaricato in File');
   }
 
   /* --- schermate -------------------------------------------------------- */
@@ -415,7 +446,7 @@
     if (tocchi >= 5) { tocchi = 0; apri(); }
   });
 
-  function apri() {
+  function aggiornaConti() {
     var l = leggi();
     $('admin-count').textContent = String(l.length);
     var u = l[l.length - 1];
@@ -431,7 +462,13 @@
       ? (restano ? restano + ' da esportare, ' + fatte + ' partite in tutto'
                  : 'tutti esportati, ' + fatte + ' partite in tutto')
       : (fatte ? fatte + ' partite, nessun consenso' : '');
+  }
 
+  function apri() {
+    aggiornaConti();
+    $('admin-esito').textContent = '';
+    $('admin-dump').hidden = true;
+    $('admin-testo').textContent = 'Mostra il testo';
     admin.hidden = false;
     clearTimeout(idle);
   }
@@ -446,12 +483,43 @@
     if (!info.hidden) chiudiInfo();
   });
 
+  var esito = $('admin-esito');
+
   $('admin-csv').addEventListener('click', function () {
     var l = leggi();
-    if (!l.length) { $('admin-last').textContent = 'Elenco vuoto'; return; }
-    scarica(l);
-    try { localStorage.setItem(ESPORTO, String(l.length)); } catch (e) {}
-    apri();
+    if (!l.length) { esito.textContent = 'Elenco vuoto'; return; }
+    esporta(l, function (fatto, messaggio) {
+      esito.textContent = messaggio;
+      if (!fatto) return;
+      try { localStorage.setItem(ESPORTO, String(l.length)); } catch (e) {}
+      aggiornaConti();
+    });
+  });
+
+  $('admin-testo').addEventListener('click', function () {
+    var box = $('admin-dump');
+    var l = leggi();
+    if (!l.length) { esito.textContent = 'Elenco vuoto'; return; }
+    box.hidden = !box.hidden;
+    this.textContent = box.hidden ? 'Mostra il testo' : 'Nascondi il testo';
+    if (!box.hidden) $('admin-dump-testo').value = csv(l);
+  });
+
+  $('admin-copia').addEventListener('click', function () {
+    var area = $('admin-dump-testo');
+    area.focus();
+    area.setSelectionRange(0, area.value.length);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (!ok && navigator.clipboard) {
+      navigator.clipboard.writeText(area.value).then(function () {
+        esito.textContent = 'Copiato';
+      }, function () {
+        esito.textContent = 'Copia a mano, il testo e\' selezionato';
+      });
+      return;
+    }
+    esito.textContent = ok ? 'Copiato' : 'Copia a mano, il testo e\' selezionato';
   });
 
   var armato = false;

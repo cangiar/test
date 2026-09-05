@@ -116,16 +116,44 @@ Cognome, Email, Consenso marketing, Premio, Codice.
 
 I dati stanno solo su quell'iPad. Scarica il CSV prima di smontare lo stand.
 
-## Deploy
+## Metterlo online e installarlo sull'iPad
 
-Netlify drag and drop: trascina la cartella su app.netlify.com/drop. Serve
-https, altrimenti il service worker non parte e l'app non va offline.
+Si', va messo online, anche se poi allo stand la rete non serve. Il motivo e'
+che il service worker, quello che fa funzionare tutto offline, parte solo su
+https. Aprire il file a mano dall'app File non basta: niente installazione da
+Home, niente offline, e i dati salvati non sono affidabili.
 
-Sull'iPad apri il sito in Safari, Condividi, Aggiungi a Home. Fai girare il
-flusso una volta con la rete attiva: dopo funziona anche senza.
+Netlify va bene ed e' gratis. Una volta sola, dieci minuti:
 
-Quando aggiorni i file alza `CACHE` in `sw.js` (`bim-v2`, `bim-v3` e via
-cosi'), altrimenti l'iPad tiene la versione vecchia.
+1. Su GitHub, dal branch `claude/bim-lead-capture-app-6t8ru1`, bottone verde
+   **Code**, poi **Download ZIP**. Scompatta.
+2. Vai su `app.netlify.com/drop` e trascina dentro la cartella, quella che
+   contiene `index.html`. Non serve account per il primo tiro, ma se lo fai
+   l'indirizzo resta tuo.
+3. Netlify ti da' un indirizzo tipo `qualcosa.netlify.app`. Aprilo e
+   controlla che la app parta.
+
+Poi sull'iPad, con la rete attiva:
+
+4. Apri quell'indirizzo **in Safari**. Non in Chrome, non dentro Instagram:
+   solo Safari sa installare le app da Home.
+5. Bottone Condividi, quello con la freccia, poi **Aggiungi a Home**.
+6. Chiudi Safari e apri la app dall'icona. Deve partire a tutto schermo,
+   senza la barra degli indirizzi.
+7. **Fai un giro completo di prova**, dalla intro fino al premio. Serve a
+   scaricare tutto in cache.
+8. Metti l'iPad in modalita' aereo e rifai un giro. Se funziona, allo stand
+   sei a posto.
+
+Prima dell'evento svuota l'elenco dalle prove, dall'area riservata.
+
+Due cose che allo stand fanno la differenza: **Accesso Guidato**
+(Impostazioni, Accessibilita', Accesso Guidato) blocca l'iPad su questa app e
+nessuno puo' uscirne, e conviene disattivare il blocco schermo automatico.
+
+Quando aggiorni i file: rifai il trascinamento su Netlify e alza `CACHE` in
+`sw.js` (`bim-v2`, `bim-v3` e via cosi'), altrimenti l'iPad tiene la versione
+vecchia. Sull'iPad la nuova versione arriva alla riapertura successiva.
 
 ## Copy
 
