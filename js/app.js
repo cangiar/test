@@ -1,14 +1,16 @@
 /* Born in Monge, raccolta contatti da stand.
  * intro -> dati -> estrazione -> premio -> intro.
- * Il premio e' fisso: Sconto 20%, MONGE20. La biglia vincente e' scelta a
+ * Il premio e' fisso: Sconto 20%, IPPICA2026. La biglia vincente e' scelta a
  * caso solo per l'animazione, non c'e' nessuna estrazione vera.
  */
 (function () {
   'use strict';
 
   var STORE = 'bim-leads';
+  var GIOCATE = 'bim-giocate';     // solo un numero, nessun dato personale
+  var ESPORTO = 'bim-ultimo-csv';
   var PREMIO = 'Sconto 20%';
-  var CODICE = 'MONGE20';
+  var CODICE = 'IPPICA2026';
   var BIGLIE = 8;
   var IDLE_MS = 45000;
 
@@ -42,6 +44,16 @@
       localStorage.setItem(STORE, JSON.stringify(l));
       return true;
     } catch (e) { return false; }
+  }
+
+  function conta(chiave) {
+    var n = parseInt(localStorage.getItem(chiave), 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // quante partite in tutto, consenso o no: e' un numero, non un dato personale
+  function segnaGiocata() {
+    try { localStorage.setItem(GIOCATE, String(conta(GIOCATE) + 1)); } catch (e) {}
   }
 
   /* --- CSV ------------------------------------------------------------- */
@@ -160,12 +172,14 @@
     if (!nome) return stop('Manca il nome', form.nome);
     if (!cognome) return stop('Manca il cognome', form.cognome);
     if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return stop('Email non valida', form.email);
-    if (!form.consenso.checked) return stop('Serve il consenso', form.consenso);
 
+    // il consenso non e' una condizione per giocare: se manca, si gioca lo
+    // stesso e non si conserva niente. Un consenso obbligato per partecipare
+    // non e' liberamente prestato e non varrebbe (art. 7.4 GDPR).
     inSospeso = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       nome: nome, cognome: cognome, email: email.toLowerCase(),
-      consenso: true, premio: PREMIO, codice: CODICE,
+      consenso: form.consenso.checked, premio: PREMIO, codice: CODICE,
       ts: new Date().toISOString()
     };
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
@@ -183,6 +197,8 @@
   function registra() {
     if (!inSospeso || registrato === inSospeso.id) return;
     registrato = inSospeso.id;
+    segnaGiocata();
+    if (!inSospeso.consenso) return;     // senza consenso non si conserva
     if (!salva(inSospeso)) {
       // se non si salva, non lo si nasconde
       var c = $('code');
@@ -204,8 +220,8 @@
   // la corsa e' divisa in tempi, non e' una sola discesa: prima pensa, poi
   // lancia, frena a lungo, si ferma quasi sulla biglia sbagliata e scatta di
   // una posizione. E' li' che sta la sorpresa.
-  var FASI = { pensa: 1200, lancia: 1500, frena: 2500, sospeso: 520, scatto: 860, respiro: 420 };
-  var PICCO = 1.7;      // giri al secondo nel tratto veloce
+  var FASI = { pensa: 1500, lancia: 1800, frena: 3400, sospeso: 700, scatto: 1100, respiro: 480 };
+  var PICCO = 0.85;     // giri al secondo nel tratto veloce
   var RAMPA = 0.55;     // quota della fase di lancio usata per accelerare
   var DERIVA = 0.10;    // giri al secondo mentre sta ancora pensando
 
@@ -406,6 +422,16 @@
     var d = u ? new Date(u.ts) : null;
     $('admin-last').textContent = d && !isNaN(d.getTime())
       ? 'Ultimo ' + d.toLocaleString('it-IT') : 'Elenco vuoto';
+
+    // quello che non e' ancora uscito dall'iPad e' quello che si puo' perdere
+    var fatte = conta(GIOCATE);
+    var esportati = conta(ESPORTO);
+    var restano = Math.max(l.length - esportati, 0);
+    $('admin-export').textContent = l.length
+      ? (restano ? restano + ' da esportare, ' + fatte + ' partite in tutto'
+                 : 'tutti esportati, ' + fatte + ' partite in tutto')
+      : (fatte ? fatte + ' partite, nessun consenso' : '');
+
     admin.hidden = false;
     clearTimeout(idle);
   }
@@ -415,13 +441,17 @@
   $('admin-close').addEventListener('click', chiudiAdmin);
   admin.addEventListener('click', function (e) { if (e.target === admin) chiudiAdmin(); });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !admin.hidden) chiudiAdmin();
+    if (e.key !== 'Escape') return;
+    if (!admin.hidden) chiudiAdmin();
+    if (!info.hidden) chiudiInfo();
   });
 
   $('admin-csv').addEventListener('click', function () {
     var l = leggi();
     if (!l.length) { $('admin-last').textContent = 'Elenco vuoto'; return; }
     scarica(l);
+    try { localStorage.setItem(ESPORTO, String(l.length)); } catch (e) {}
+    apri();
   });
 
   var armato = false;
@@ -437,9 +467,25 @@
     clearTimeout(armatoT);
     armato = false;
     b.textContent = 'Svuota elenco';
-    try { localStorage.removeItem(STORE); } catch (e) {}
+    try {
+      localStorage.removeItem(STORE);
+      localStorage.removeItem(ESPORTO);
+    } catch (e) {}
     apri();
   });
+
+  /* --- informativa ---------------------------------------------------------- */
+
+  var info = $('info');
+
+  function chiudiInfo() { info.hidden = true; riarma(); }
+
+  $('apri-info').addEventListener('click', function () {
+    info.hidden = false;
+    clearTimeout(idle);
+  });
+  $('chiudi-info').addEventListener('click', chiudiInfo);
+  info.addEventListener('click', function (e) { if (e.target === info) chiudiInfo(); });
 
   /* --- logo opzionale ------------------------------------------------------ */
 

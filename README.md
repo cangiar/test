@@ -2,7 +2,7 @@
 
 App da stand per Born in Monge. La hostess ferma una persona, quella lascia
 nome, cognome, email e consenso su un iPad, parte l'estrazione con le biglie
-e vince sempre lo sconto 20% con codice MONGE20. I contatti restano
+e vince sempre lo sconto 20% con codice IPPICA2026. I contatti restano
 sull'iPad e si esportano in CSV.
 
 Quattro schermate in fila, nessun ritorno indietro: intro, dati, estrazione,
@@ -81,14 +81,15 @@ sola, sono sei tempi, ed e' li' che sta la sorpresa:
 
 | tempo | durata | cosa si vede |
 | --- | --- | --- |
-| pensa | 1,2 s | l'anello striscia a 0,1 giri al secondo, una luce gira fra le biglie |
-| lancia | 1,5 s | accelera fino a 1,7 giri al secondo |
-| corsa | 0 a 0,6 s | tiene la velocita' quel tanto che serve per agganciare la frenata |
-| frena | 2,5 s | rallenta a lungo e si ferma sulla biglia sbagliata |
-| sospeso | 0,5 s | fermo. sembra finita |
-| scatto | 0,9 s | avanza di una posizione sola e si ferma sulla vincente |
+| pensa | 1,5 s | l'anello striscia a 0,1 giri al secondo, una luce gira fra le biglie |
+| lancia | 1,8 s | accelera fino a 0,85 giri al secondo |
+| corsa | 0 a 1,2 s | tiene la velocita' quel tanto che serve per agganciare la frenata |
+| frena | 3,4 s | rallenta a lungo e si ferma sulla biglia sbagliata |
+| sospeso | 0,7 s | fermo. sembra finita |
+| scatto | 1,1 s | avanza di una posizione sola e si ferma sulla vincente |
 
-In tutto poco piu' di otto secondi fino al premio. La frenata parte
+In tutto poco piu' di dieci secondi fino al premio, con due giri e un
+quarto in tutto. La frenata parte
 esattamente alla velocita' con cui finisce il lancio, quindi non ci sono
 strappi: la durata della corsa piena si allunga da sola quel tanto che
 serve a far tornare i conti.

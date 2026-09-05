@@ -69,8 +69,13 @@
         <label class="consent" for="consenso">
           <input id="consenso" name="consenso" type="checkbox">
           <span class="consent__box" aria-hidden="true"></span>
-          <span class="consent__text">Voglio le email di Born in Monge</span>
+          <span class="consent__text">
+            Voglio ricevere email e novità da Born in Monge
+            <small>Facoltativo. Se non lo spunti giochi lo stesso e non teniamo i tuoi dati.</small>
+          </span>
         </label>
+
+        <button class="info" type="button" id="apri-info">Informativa privacy</button>
 
         <p class="error" id="error" role="alert" hidden></p>
       </div>
@@ -93,8 +98,9 @@
     <div class="stack">
       <p class="kicker">Hai vinto</p>
       <h2 class="display">Sconto<br>20%</h2>
-      <p class="code" id="code">MONGE20</p>
-      <p class="note">Direttamente da Mongerbino</p>
+      <p class="code" id="code">IPPICA2026</p>
+      <p class="note">Usalo subito, allo stand o su borninmonge.com</p>
+      <p class="note note--fine">Direttamente da Mongerbino</p>
     </div>
     <div class="act">
       <button class="home" type="button" data-go="intro" aria-label="Torna all'inizio">
@@ -117,9 +123,55 @@
     <p class="kicker" id="admin-title">Contatti</p>
     <p class="tally"><span id="admin-count">0</span></p>
     <p class="note" id="admin-last"></p>
+    <p class="note note--fine" id="admin-export"></p>
     <button class="cta cta--scuro" type="button" id="admin-csv">Scarica CSV</button>
     <button class="quiet" type="button" id="admin-wipe">Svuota elenco</button>
     <button class="quiet" type="button" id="admin-close">Chiudi</button>
+  </div>
+</div>
+
+<div class="admin" id="info" hidden>
+  <div class="sheet sheet--testo" role="dialog" aria-modal="true" aria-labelledby="info-title">
+    <p class="kicker" id="info-title">Informativa privacy</p>
+    <div class="testo">
+      <p><strong>Titolare del trattamento</strong><br>
+      [RAGIONE SOCIALE], [INDIRIZZO], P.IVA [NUMERO].<br>
+      Per qualsiasi richiesta: [EMAIL PRIVACY].</p>
+
+      <p><strong>Quali dati</strong><br>
+      Nome, cognome e indirizzo email, che lasci tu su questo iPad.</p>
+
+      <p><strong>Perché</strong><br>
+      Per inviarti comunicazioni commerciali, novità e offerte di Born in
+      Monge via email.</p>
+
+      <p><strong>Su quale base</strong><br>
+      Il tuo consenso, articolo 6.1.a del Regolamento UE 2016/679. Il
+      consenso è facoltativo: se non lo dai partecipi lo stesso e vinci lo
+      stesso, e i tuoi dati non vengono conservati.</p>
+
+      <p><strong>Dove finiscono</strong><br>
+      Restano su questo iPad, senza connessione a internet, e vengono poi
+      esportati in un file che resta in mano a [RAGIONE SOCIALE]. Non
+      vengono ceduti a terzi e non escono dallo Spazio Economico Europeo.</p>
+
+      <p><strong>Per quanto tempo</strong><br>
+      Fino a quando revochi il consenso, e comunque non oltre
+      [NUMERO] mesi dalla raccolta.</p>
+
+      <p><strong>I tuoi diritti</strong><br>
+      Puoi chiedere in qualsiasi momento di accedere ai tuoi dati,
+      correggerli, cancellarli, limitarne l'uso, opporti al trattamento o
+      riceverli in formato leggibile. Puoi revocare il consenso quando
+      vuoi, scrivendo a [EMAIL PRIVACY] o dal link di disiscrizione in
+      fondo a ogni email. La revoca non tocca quello che è stato fatto
+      prima.</p>
+
+      <p><strong>Reclami</strong><br>
+      Puoi rivolgerti al Garante per la protezione dei dati personali,
+      www.garanteprivacy.it.</p>
+    </div>
+    <button class="cta cta--scuro" type="button" id="chiudi-info">Ho capito</button>
   </div>
 </div>
 
