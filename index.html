@@ -30,58 +30,82 @@
 <main class="stage">
 
   <section class="view is-active" id="v-intro">
-    <p class="kicker">Mongerbino</p>
-    <h1 class="display">Accedi<br>all'isola.</h1>
-    <button class="cta" type="button" data-go="form">Entra</button>
+    <div class="stack">
+      <img class="hero-logo" id="hero-logo" alt="Born in Monge" hidden>
+      <p class="kicker">Mongerbino</p>
+      <h1 class="display">Accedi<br>all'isola.</h1>
+    </div>
+    <div class="act">
+      <button class="cta" type="button" data-go="form">Entra</button>
+    </div>
   </section>
 
   <section class="view" id="v-form" hidden>
     <form id="form" novalidate autocomplete="on">
-      <h2 class="display display--sm">Lascia<br>i tuoi dati</h2>
+      <div class="stack stack--left">
+        <h2 class="display display--sm">Lascia<br>i tuoi dati</h2>
 
-      <div class="fields">
-        <div class="field">
-          <label for="nome">Nome</label>
-          <input id="nome" name="nome" type="text" autocomplete="given-name"
-                 autocapitalize="words" autocorrect="off" spellcheck="false"
-                 enterkeyhint="next" maxlength="60">
+        <div class="fields">
+          <div class="field">
+            <label for="nome">Nome</label>
+            <input id="nome" name="nome" type="text" autocomplete="given-name"
+                   autocapitalize="words" autocorrect="off" spellcheck="false"
+                   enterkeyhint="next" maxlength="60">
+          </div>
+          <div class="field">
+            <label for="cognome">Cognome</label>
+            <input id="cognome" name="cognome" type="text" autocomplete="family-name"
+                   autocapitalize="words" autocorrect="off" spellcheck="false"
+                   enterkeyhint="next" maxlength="60">
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" inputmode="email"
+                   autocomplete="email" autocapitalize="off" autocorrect="off"
+                   spellcheck="false" enterkeyhint="done" maxlength="120">
+          </div>
         </div>
-        <div class="field">
-          <label for="cognome">Cognome</label>
-          <input id="cognome" name="cognome" type="text" autocomplete="family-name"
-                 autocapitalize="words" autocorrect="off" spellcheck="false"
-                 enterkeyhint="next" maxlength="60">
-        </div>
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" inputmode="email"
-                 autocomplete="email" autocapitalize="off" autocorrect="off"
-                 spellcheck="false" enterkeyhint="done" maxlength="120">
-        </div>
+
+        <label class="consent" for="consenso">
+          <input id="consenso" name="consenso" type="checkbox">
+          <span class="consent__box" aria-hidden="true"></span>
+          <span class="consent__text">Voglio le email di Born in Monge</span>
+        </label>
+
+        <p class="error" id="error" role="alert" hidden></p>
       </div>
 
-      <label class="consent" for="consenso">
-        <input id="consenso" name="consenso" type="checkbox">
-        <span class="consent__box" aria-hidden="true"></span>
-        <span class="consent__text">Voglio le email di Born in Monge</span>
-      </label>
-
-      <p class="error" id="error" role="alert" hidden></p>
-      <button class="cta" type="submit">Avanti</button>
+      <div class="act">
+        <button class="cta" type="submit">Avanti</button>
+      </div>
     </form>
   </section>
 
   <section class="view" id="v-draw" hidden>
-    <h2 class="display display--sm">L'isola<br>decide.</h2>
-    <div class="ring" id="ring" role="img" aria-label="Estrazione"></div>
+    <div class="stack">
+      <h2 class="display display--sm">L'isola<br>decide.</h2>
+      <div class="ring" id="ring" role="img" aria-label="Estrazione"></div>
+    </div>
+    <div class="act"></div>
   </section>
 
   <section class="view" id="v-prize" hidden>
-    <p class="kicker">Hai vinto</p>
-    <h2 class="display">Sconto<br>20%</h2>
-    <p class="code" id="code">MONGE20</p>
-    <p class="note">Direttamente da Mongerbino</p>
-    <button class="cta cta--ghost" type="button" data-go="intro">Avanti il prossimo</button>
+    <div class="stack">
+      <p class="kicker">Hai vinto</p>
+      <h2 class="display">Sconto<br>20%</h2>
+      <p class="code" id="code">MONGE20</p>
+      <p class="note">Direttamente da Mongerbino</p>
+    </div>
+    <div class="act">
+      <button class="home" type="button" data-go="intro" aria-label="Torna all'inizio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 10.7 12 3.6l9 7.1"/>
+          <path d="M5.5 9.3V20.4h13V9.3"/>
+          <path d="M9.7 20.4V15h4.6v5.4"/>
+        </svg>
+      </button>
+    </div>
   </section>
 
 </main>
@@ -93,7 +117,7 @@
     <p class="kicker" id="admin-title">Contatti</p>
     <p class="tally"><span id="admin-count">0</span></p>
     <p class="note" id="admin-last"></p>
-    <button class="cta" type="button" id="admin-csv">Scarica CSV</button>
+    <button class="cta cta--scuro" type="button" id="admin-csv">Scarica CSV</button>
     <button class="quiet" type="button" id="admin-wipe">Svuota elenco</button>
     <button class="quiet" type="button" id="admin-close">Chiudi</button>
   </div>

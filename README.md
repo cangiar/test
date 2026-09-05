@@ -24,48 +24,77 @@ tools/make-icons.py     rigenera le icone
 
 ## Impianto grafico
 
-Fondo crema, testi petrolio, ciliegia solo sul bottone principale. Una sola
-scala tipografica: Montserrat 900 per i titoli grandi, 900 piccolo e
-spaziato per le etichette, 600 per il resto. Niente ombre gonfie, niente
-riquadri: i campi del form sono righe, non caselle.
+Il mare visto dalla riva: massa profonda in basso, luce in alto. Ogni
+schermata e' divisa in due fasce. Il testo sta sulla luce, in petrolio. I
+comandi stanno sull'acqua e sono in vetro: bianchi, translucidi, sfocati
+dietro.
 
-Le variabili stanno in cima a `css/app.css`.
+Una sola scala tipografica: Montserrat 900 per i titoli, 900 piccolo e
+spaziato per le etichette, 600 per il resto. Niente ombre gonfie, niente
+riquadri: i campi del form sono righe.
+
+La ciliegia resta solo sugli errori: nel resto del flusso i comandi sono di
+vetro, che sull'acqua funziona meglio di un pieno rosso.
+
+Il pelo dell'acqua sta a `--pelo` in `css/app.css` e a `linea` nello
+shader. Se cambi uno cambia anche l'altro, altrimenti i bottoni finiscono
+fuori dall'acqua.
 
 ## Sfondo
 
-`js/backdrop.js` disegna sei macchie di colore larghissime nei pastelli del
-brand, che si spostano su percorsi lenti e sfasati fra loro. Non e' una foto
-e non prova a sembrarlo. Il centro e' schiarito perche' il testo ci sta
-sopra, e c'e' una grana ferma da pellicola che evita le bande sulle
-sfumature.
+`js/backdrop.js` disegna il mare. Il pelo dell'acqua e' mosso da tre onde
+sovrapposte a periodi diversi, quindi non si ripete e non sembra una linea
+disegnata. Sotto si va a fondo, sopra resta la crema con una foschia
+azzurra che si sposta piano. Il passaggio e' lungo e sfocato, e sopra a
+tutto c'e' una grana grossa da stampa: e' quella che tiene insieme il
+disegno ed evita le bande.
 
 Manopole, si passano al costruttore in fondo a `js/app.js`:
 
 ```js
 new window.BimBackdrop(document.getElementById('bg'), {
-  speed: 1,       // 0.5 per un movimento ancora piu' lento
-  grain: 0.022,   // 0 per togliere la grana
+  linea: 0.34,    // altezza del pelo dell'acqua, va d'accordo con --pelo
+  grain: 0.075,   // grana, 0 per toglierla
+  speed: 1,       // 0.5 per onde ancora piu' lente
   maxDpr: 1.5     // risoluzione massima
 });
 ```
 
-Se WebGL non parte, lo stesso disegno resta fermo in CSS. Con
-`prefers-reduced-motion` lo sfondo si blocca e l'estrazione dura mezzo
-secondo.
+Se WebGL non parte, lo stesso impianto resta fermo in CSS. Con
+`prefers-reduced-motion` il mare si blocca e l'estrazione non gira.
 
 ## Logo
 
-Il marchio in alto a sinistra e' la scritta Born in Monge in Montserrat 900.
-Se metti un `assets/logo.png` l'app lo carica da sola e prende il posto
-della scritta, senza toccare il codice. Va bene un PNG scontornato alto
-almeno 60 px. Poi aggiungilo alla lista `SHELL` in `sw.js` per averlo anche
-offline.
+Il marchio in alto a sinistra e' la scritta Born in Monge in Montserrat 900,
+ed e' un ripiego. Metti il logo vero in `assets/logo.png` e l'app lo carica
+da sola: prende il posto della scritta in alto e compare grande sulla
+schermata di apertura. Nessuna modifica al codice.
+
+Serve un PNG scontornato, quindi con il fondo trasparente e senza i margini
+bianchi intorno, alto almeno 200 px. Poi aggiungi `'./assets/logo.png'`
+alla lista `SHELL` in `sw.js` e alza `CACHE`, altrimenti offline non c'e'.
 
 ## Estrazione
 
-Otto biglie, parte da sola appena si apre la schermata, un giro e tre quarti
-in poco piu' di quattro secondi con partenza morbida. La vincente va al
-centro e cresce, le altre svaniscono.
+Otto biglie, parte da sola appena si apre la schermata. Non e' una discesa
+sola, sono sei tempi, ed e' li' che sta la sorpresa:
+
+| tempo | durata | cosa si vede |
+| --- | --- | --- |
+| pensa | 1,2 s | l'anello striscia a 0,1 giri al secondo, una luce gira fra le biglie |
+| lancia | 1,5 s | accelera fino a 1,7 giri al secondo |
+| corsa | 0 a 0,6 s | tiene la velocita' quel tanto che serve per agganciare la frenata |
+| frena | 2,5 s | rallenta a lungo e si ferma sulla biglia sbagliata |
+| sospeso | 0,5 s | fermo. sembra finita |
+| scatto | 0,9 s | avanza di una posizione sola e si ferma sulla vincente |
+
+In tutto poco piu' di otto secondi fino al premio. La frenata parte
+esattamente alla velocita' con cui finisce il lancio, quindi non ci sono
+strappi: la durata della corsa piena si allunga da sola quel tanto che
+serve a far tornare i conti.
+
+Le durate stanno in `FASI` in cima alla sezione biglie di `js/app.js`, la
+velocita' di punta in `PICCO`.
 
 Il premio e' fisso. La biglia vincente e' scelta a caso solo per
 l'animazione, non c'e' nessuna estrazione vera.
@@ -75,8 +104,9 @@ l'animazione, non c'e' nessuna estrazione vera.
 Tutto in `localStorage`, chiave `bim-leads`. Si salva quando compare il
 premio.
 
-Area riservata: cinque tocchi sulla scritta Born in Monge in alto a
-sinistra. Da li' vedi quanti contatti ci sono, scarichi il CSV e puoi
+Dal premio si torna all'inizio con la casetta in basso.
+
+Area riservata: cinque tocchi sul marchio in alto a sinistra. Da li' vedi quanti contatti ci sono, scarichi il CSV e puoi
 svuotare l'elenco, con un secondo tocco di conferma.
 
 Il CSV ha il BOM UTF-8 e il punto e virgola come separatore, cosi' Excel in

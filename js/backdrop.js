@@ -1,6 +1,6 @@
-/* Sfondo: campo di colore morbido nei pastelli del brand, in movimento
- * lentissimo. Non e' una foto e non vuole sembrarlo: e' una sfumatura
- * larga, slavata, con grana da pellicola per non fare le bande.
+/* Sfondo: mare. Una massa profonda che sale dal basso con un bordo mosso
+ * dalle onde, sopra la luce. Sfumature larghe, nessun contorno netto e una
+ * grana marcata da stampa, che e' quello che tiene insieme il tutto.
  */
 (function (global) {
   'use strict';
@@ -12,19 +12,18 @@
     'uniform vec2 uRes;',
     'uniform float uTime;',
     'uniform float uGrain;',
+    'uniform float uLinea;',   // altezza del pelo dell\'acqua
     '',
-    'const vec3 CREMA    = vec3(0.992, 0.984, 0.965);',
-    'const vec3 ACQUA    = vec3(0.498, 0.820, 0.847);',
-    'const vec3 AZZURRO  = vec3(0.749, 0.882, 0.949);',
-    'const vec3 ROSA     = vec3(0.969, 0.776, 0.816);',
-    'const vec3 LILLA    = vec3(0.812, 0.769, 0.918);',
-    'const vec3 PESCA    = vec3(0.984, 0.851, 0.745);',
-    'const vec3 CILIEGIA = vec3(0.949, 0.427, 0.427);',
+    'const vec3 CREMA   = vec3(0.992, 0.984, 0.965);',
+    'const vec3 ACQUA   = vec3(0.498, 0.820, 0.847);',
+    'const vec3 AZZURRO = vec3(0.749, 0.882, 0.949);',
+    'const vec3 MEDIO   = vec3(0.055, 0.404, 0.545);',
+    'const vec3 CUPO    = vec3(0.035, 0.216, 0.310);',
+    'const vec3 FONDO   = vec3(0.016, 0.098, 0.157);',
     '',
-    '// macchia larghissima: exp() non ha bordo, quindi non si vede il cerchio',
-    'vec3 blob(vec3 col, vec2 p, vec2 c, float r, vec3 tint, float a) {',
+    'vec3 blob(vec3 col, vec2 p, vec2 c, float r, vec3 tinta, float a) {',
     '  float d = length(p - c) / r;',
-    '  return mix(col, tint, exp(-d * d * 1.9) * a);',
+    '  return mix(col, tinta, exp(-d * d * 1.9) * a);',
     '}',
     '',
     'float hash(vec2 p) {',
@@ -37,32 +36,41 @@
     '  vec2 p = vec2(s.x * ar, s.y);',
     '  float t = uTime;',
     '',
-    '  // svergolamento lento: le macchie non restano tonde',
-    '  p += 0.055 * vec2(sin(p.y * 2.1 + t * 0.071), cos(p.x * 1.9 - t * 0.063));',
+    '  // tre onde sovrapposte a periodi diversi: il pelo dell\'acqua non si',
+    '  // ripete e non sembra una linea disegnata',
+    '  float onda = uLinea',
+    '    + 0.034 * sin(p.x * 2.20 + t * 0.128)',
+    '    + 0.021 * sin(p.x * 3.90 - t * 0.171)',
+    '    + 0.013 * sin(p.x * 6.30 + t * 0.109);',
     '',
-    '  vec3 col = CREMA;',
-    '  col = blob(col, p, vec2(ar * (0.16 + 0.13 * sin(t * 0.058)),',
-    '                          0.82 + 0.10 * cos(t * 0.047)), 0.66, ACQUA,   0.68);',
-    '  col = blob(col, p, vec2(ar * (0.88 + 0.10 * cos(t * 0.041)),',
-    '                          0.24 + 0.12 * sin(t * 0.053)), 0.60, AZZURRO, 0.63);',
-    '  col = blob(col, p, vec2(ar * (0.78 + 0.12 * sin(t * 0.037)),',
-    '                          0.86 + 0.09 * cos(t * 0.061)), 0.52, ROSA,    0.53);',
-    '  col = blob(col, p, vec2(ar * (0.10 + 0.11 * cos(t * 0.049)),',
-    '                          0.14 + 0.10 * sin(t * 0.043)), 0.50, LILLA,   0.46);',
-    '  col = blob(col, p, vec2(ar * (0.52 + 0.16 * sin(t * 0.031)),',
-    '                          0.04 + 0.08 * cos(t * 0.055)), 0.44, PESCA,   0.41);',
-    '  col = blob(col, p, vec2(ar * (0.96 + 0.08 * sin(t * 0.045)),',
-    '                          0.98 + 0.07 * cos(t * 0.039)), 0.34, CILIEGIA, 0.16);',
+    '  // sopra: crema con foschia azzurra che si sposta piano',
+    '  vec3 sopra = CREMA;',
+    '  sopra = blob(sopra, p, vec2(ar * (0.14 + 0.10 * sin(t * 0.047)),',
+    '                              0.92 + 0.08 * cos(t * 0.039)), 0.52, ACQUA,   0.34);',
+    '  sopra = blob(sopra, p, vec2(ar * (0.90 + 0.09 * cos(t * 0.041)),',
+    '                              0.78 + 0.09 * sin(t * 0.053)), 0.46, AZZURRO, 0.30);',
+    '  sopra = blob(sopra, p, vec2(ar * (0.56 + 0.14 * sin(t * 0.031)),',
+    '                              1.06 + 0.06 * cos(t * 0.061)), 0.40, MEDIO,   0.13);',
     '',
-    '  // centro schiarito: il testo ci sta sopra e deve restare leggibile',
-    '  float d = length((s - 0.5) * vec2(ar, 1.0));',
-    '  col = mix(col, CREMA, 0.26 * smoothstep(0.86, 0.04, d));',
+    '  // sotto: piu\' si scende piu\' e\' fondo',
+    '  float prof = smoothstep(onda, -0.02, s.y);',
+    '  vec3 sotto = mix(MEDIO, FONDO, prof);',
+    '  sotto = mix(sotto, CUPO, 0.55 * smoothstep(0.0, 0.55, prof));',
+    '  sotto = blob(sotto, p, vec2(ar * (0.28 + 0.16 * sin(t * 0.037)),',
+    '                              0.16 + 0.07 * cos(t * 0.045)), 0.44, ACQUA, 0.26);',
+    '  sotto = blob(sotto, p, vec2(ar * (0.82 + 0.12 * cos(t * 0.052)),',
+    '                              0.06 + 0.06 * sin(t * 0.033)), 0.38, MEDIO, 0.40);',
     '',
-    '  // caduta agli angoli, appena accennata',
-    '  col *= 1.0 - 0.05 * smoothstep(0.35, 1.05, d);',
+    '  // il passaggio e\' lungo, sfocato: nessun bordo tagliato',
+    '  float mare = smoothstep(onda + 0.10, onda - 0.08, s.y);',
+    '  vec3 col = mix(sopra, sotto, mare);',
     '',
-    '  // grana ferma, da carta: toglie le bande senza fare rumore video',
-    '  col += (hash(floor(gl_FragCoord.xy)) - 0.5) * uGrain;',
+    '  // schiuma appena accennata sulla cresta',
+    '  float d = (s.y - onda) / 0.030;',
+    '  col = mix(col, vec3(0.97, 0.99, 0.99), 0.22 * exp(-d * d));',
+    '',
+    '  // grana grossa da stampa, uguale ovunque',
+    '  col += (hash(floor(gl_FragCoord.xy / 1.4)) - 0.5) * uGrain;',
     '',
     '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);',
     '}'
@@ -70,11 +78,12 @@
 
   function Backdrop(canvas, options) {
     var opt = options || {};
-    var grain = opt.grain === undefined ? 0.022 : opt.grain;
+    var grain = opt.grain === undefined ? 0.075 : opt.grain;
+    var linea = opt.linea === undefined ? 0.34 : opt.linea;
     var speed = opt.speed === undefined ? 1 : opt.speed;
     var maxDpr = opt.maxDpr === undefined ? 1.5 : opt.maxDpr;
 
-    var gl, prog, uRes, uTime, uGrain;
+    var gl, prog, uRes, uTime, uGrain, uLinea;
     var raf = 0, running = false, clock = 0, last = 0, lost = false;
 
     var mq = global.matchMedia
@@ -104,6 +113,7 @@
       uRes = gl.getUniformLocation(prog, 'uRes');
       uTime = gl.getUniformLocation(prog, 'uTime');
       uGrain = gl.getUniformLocation(prog, 'uGrain');
+      uLinea = gl.getUniformLocation(prog, 'uLinea');
 
       gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
       gl.bufferData(gl.ARRAY_BUFFER,
@@ -132,18 +142,16 @@
         last = now;
       }
       gl.uniform2f(uRes, canvas.width, canvas.height);
-      gl.uniform1f(uTime, still ? 6.0 : (clock / 1000) * speed);
+      gl.uniform1f(uTime, still ? 8.0 : (clock / 1000) * speed);
       gl.uniform1f(uGrain, grain);
+      gl.uniform1f(uLinea, linea);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       if (!still && running) raf = global.requestAnimationFrame(draw);
     }
 
     function play() {
       if (!gl || lost) return;
-      if (still) {
-        if (!raf) raf = global.requestAnimationFrame(draw);
-        return;
-      }
+      if (still) { if (!raf) raf = global.requestAnimationFrame(draw); return; }
       if (running) return;
       running = true;
       last = 0;
@@ -164,7 +172,6 @@
         if (!gl) throw new Error('niente webgl');
         build();
       } catch (e) {
-        // la riserva CSS e' lo stesso disegno, solo fermo
         document.documentElement.classList.add('no-gl');
         canvas.hidden = true;
         return false;

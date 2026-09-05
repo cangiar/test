@@ -12,11 +12,12 @@
   var BIGLIE = 8;
   var IDLE_MS = 45000;
 
+  // tutte nella famiglia del mare, dal fondo alla schiuma
   var COPPIE = [
-    ['#7FD1D8', '#F7C6D0'], ['#CFC4EA', '#BFE1F2'],
-    ['#F7C6D0', '#FBD9BE'], ['#BFE1F2', '#C6E4CD'],
-    ['#FBD9BE', '#CFC4EA'], ['#C6E4CD', '#7FD1D8'],
-    ['#CFC4EA', '#F7C6D0'], ['#BFE1F2', '#FBD9BE']
+    ['#7FD1D8', '#BFE1F2'], ['#4FB3C9', '#A9E2E8'],
+    ['#BFE1F2', '#6FC4E0'], ['#1B7FA0', '#7FD1D8'],
+    ['#A9E2E8', '#4FB3C9'], ['#6FC4E0', '#BFE1F2'],
+    ['#2E6E8E', '#7FD1D8'], ['#9FD8EC', '#4FB3C9']
   ];
 
   var $ = function (id) { return document.getElementById(id); };
@@ -197,6 +198,17 @@
   var biglie = [];
   var giroRaf = 0;
 
+  var PASSO = Math.PI * 2 / BIGLIE;
+  var GIRO = Math.PI * 2;
+
+  // la corsa e' divisa in tempi, non e' una sola discesa: prima pensa, poi
+  // lancia, frena a lungo, si ferma quasi sulla biglia sbagliata e scatta di
+  // una posizione. E' li' che sta la sorpresa.
+  var FASI = { pensa: 1200, lancia: 1500, frena: 2500, sospeso: 520, scatto: 860, respiro: 420 };
+  var PICCO = 1.7;      // giri al secondo nel tratto veloce
+  var RAMPA = 0.55;     // quota della fase di lancio usata per accelerare
+  var DERIVA = 0.10;    // giri al secondo mentre sta ancora pensando
+
   function costruisci() {
     for (var i = 0; i < BIGLIE; i++) {
       var m = document.createElement('div');
@@ -211,13 +223,35 @@
 
   function raggio() { return ring.clientWidth * 0.38; }
 
-  function disponi(base, r, scala) {
+  function disponi(base, r, scale) {
     for (var i = 0; i < biglie.length; i++) {
-      var ang = base + (i / BIGLIE) * Math.PI * 2;
+      var ang = base + i * PASSO;
+      var sc = typeof scale === 'number' ? scale : scale[i];
       biglie[i].style.transform =
         'translate3d(' + (Math.cos(ang) * r).toFixed(2) + 'px,' +
-        (Math.sin(ang) * r).toFixed(2) + 'px,0) scale(' + scala + ')';
+        (Math.sin(ang) * r).toFixed(2) + 'px,0) scale(' + sc.toFixed(3) + ')';
     }
+  }
+
+  // porta la biglia i in cima al cerchio
+  function cima(i) { return -Math.PI / 2 - i * PASSO; }
+
+  // luce che gira intorno all'anello: si vede che sta decidendo
+  function battito(t) {
+    var out = [];
+    for (var i = 0; i < BIGLIE; i++) {
+      var u = (t / 780 - i / BIGLIE) % 1;
+      if (u < 0) u += 1;
+      if (u > 0.5) u -= 1;
+      out.push(1 + 0.15 * Math.exp(-(u / 0.12) * (u / 0.12)));
+    }
+    return out;
+  }
+
+  // integrale della rampa di velocita', per avere l'angolo senza accumulare
+  function percorso(k) {
+    if (k >= RAMPA) return RAMPA / 2 + (k - RAMPA);
+    return k * k * k / (RAMPA * RAMPA) - k * k * k * k / (2 * RAMPA * RAMPA * RAMPA);
   }
 
   function preparaGiro() {
@@ -225,38 +259,106 @@
     biglie.forEach(function (m) {
       m.classList.remove('is-out');
       m.style.transition = '';
+      m.style.opacity = '';
     });
-    disponi(-Math.PI / 2, raggio(), 1);
-    // parte da sola: un tocco in meno per la hostess
-    setTimeout(gira, reduced.matches ? 200 : 700);
+    disponi(cima(0), raggio(), 1);
+    setTimeout(gira, 420);
   }
 
   function gira() {
     if (corrente !== 'draw') return;
     var vincente = Math.floor(Math.random() * BIGLIE);
-    var giri = 1.75;
-    var da = -Math.PI / 2;
-    var arco = Math.PI * 2 * giri - (vincente / BIGLIE) * Math.PI * 2;
-    var durata = reduced.matches ? 600 : 4200;
+    if (reduced.matches) return giroFermo(vincente);
+
+    var durL = FASI.lancia / 1000;
+    var durF = FASI.frena / 1000;
+    // easeOutQuint parte con pendenza 5, quindi la frenata copre sempre
+    // questo arco: e' da qui che si ricava dove deve iniziare
+    var arcoF = PICCO * durF / 5;
+
+    var A0 = cima(0);
+    var A1 = A0 + DERIVA * GIRO * (FASI.pensa / 1000);
+    var A2 = A1 + DERIVA * GIRO * durL
+                + (PICCO - DERIVA) * GIRO * durL * percorso(1);
+    // la corsa piena si allunga quel tanto che basta perche' la frenata
+    // cominci esattamente alla velocita' con cui e' finito il lancio:
+    // arrotondare il bersaglio al giro intero faceva ripartire in accelerazione
+    var fase = cima(vincente + 1) - arcoF * GIRO;
+    var A3 = fase + GIRO * Math.ceil((A2 - fase) / GIRO);
+    var attesa = (A3 - A2) / (PICCO * GIRO) * 1000;
+    var bersaglio = A3 + arcoF * GIRO;
+
+    var t1 = FASI.pensa;
+    var t2 = t1 + FASI.lancia;
+    var t3 = t2 + attesa;
+    var t4 = t3 + FASI.frena;
+    var t5 = t4 + FASI.sospeso;
+    var t6 = t5 + FASI.scatto;
+    var t7 = t6 + FASI.respiro;
     var t0 = performance.now();
 
     function passo(now) {
-      var k = Math.min((now - t0) / durata, 1);
-      // avvio morbido con smoothstep, poi coda lunga: niente scatto iniziale
-      var s = k * k * (3 - 2 * k);
-      var e = 1 - Math.pow(1 - s, 4);
-      disponi(da + arco * e, raggio(), 1);
-      if (k < 1) {
+      var t = now - t0;
+      var ang, scale = 1, veloce = 0;
+
+      if (t < t1) {
+        ang = A0 + DERIVA * GIRO * (t / 1000);
+        scale = battito(t);
+
+      } else if (t < t2) {
+        var k = (t - t1) / FASI.lancia;
+        ang = A1 + DERIVA * GIRO * ((t - t1) / 1000)
+                 + (PICCO - DERIVA) * GIRO * durL * percorso(k);
+        veloce = Math.min(k / RAMPA, 1);
+
+      } else if (t < t3) {
+        ang = A2 + PICCO * GIRO * ((t - t2) / 1000);
+        veloce = 1;
+
+      } else if (t < t4) {
+        var f = (t - t3) / FASI.frena;
+        ang = A3 + (bersaglio - A3) * (1 - Math.pow(1 - f, 5));
+        veloce = Math.pow(1 - f, 4);
+
+      } else if (t < t5) {
+        ang = bersaglio;                       // quasi. non ancora
+
+      } else if (t < t6) {
+        var c = (t - t5) / FASI.scatto;
+        ang = bersaglio + PASSO *
+              (c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2);
+
+      } else {
+        ang = bersaglio + PASSO;
+      }
+
+      // nel tratto veloce il cerchio si allarga appena, come per la forza
+      disponi(ang, raggio() * (1 + 0.045 * veloce), scale);
+
+      if (t < t7) {
         giroRaf = requestAnimationFrame(passo);
       } else {
         giroRaf = 0;
-        chiudi(vincente);
+        rivela(vincente);
       }
     }
     giroRaf = requestAnimationFrame(passo);
   }
 
-  function chiudi(vincente) {
+  // moto ridotto: niente rotazione, ma gli stessi tempi, cosi' non sembra
+  // che il risultato fosse gia' deciso
+  function giroFermo(vincente) {
+    var t0 = performance.now();
+    function passo(now) {
+      var t = now - t0;
+      disponi(cima(0), raggio(), battito(t));
+      if (t < 1100) giroRaf = requestAnimationFrame(passo);
+      else { giroRaf = 0; setTimeout(function () { rivela(vincente); }, 380); }
+    }
+    giroRaf = requestAnimationFrame(passo);
+  }
+
+  function rivela(vincente) {
     biglie.forEach(function (m, i) {
       if (i === vincente) {
         m.style.transition = 'transform .9s cubic-bezier(.16,.84,.28,1)';
@@ -265,11 +367,11 @@
         m.classList.add('is-out');
       }
     });
-    setTimeout(function () { vai('prize'); }, reduced.matches ? 300 : 1200);
+    setTimeout(function () { vai('prize'); }, reduced.matches ? 700 : 1050);
   }
 
   window.addEventListener('resize', function () {
-    if (corrente === 'draw' && !giroRaf) disponi(-Math.PI / 2, raggio(), 1);
+    if (corrente === 'draw' && !giroRaf) disponi(cima(0), raggio(), 1);
     riarma();
   });
 
@@ -341,7 +443,8 @@
 
   /* --- logo opzionale ------------------------------------------------------ */
 
-  // se assets/logo.png esiste prende il posto della scritta, senza toccare nulla
+  // se assets/logo.png esiste prende il posto della scritta, in alto e nella
+  // schermata di attesa, senza toccare nulla
   (function () {
     var probe = new Image();
     probe.onload = function () {
@@ -349,6 +452,9 @@
       img.src = probe.src;
       img.hidden = false;
       $('brand-text').hidden = true;
+      var hero = $('hero-logo');
+      hero.src = probe.src;
+      hero.hidden = false;
     };
     probe.src = 'assets/logo.png';
   }());
