@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FDFBF6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="BIM">
+<meta name="robots" content="noindex">
+<title>Born in Monge</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/montserrat-latin-900-normal.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="assets/fonts/montserrat-latin-600-normal.woff2" crossorigin>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<header class="chrome">
+  <button class="brand" id="brand" type="button" aria-label="Born in Monge">
+    <img class="brand__img" id="brand-img" alt="Born in Monge" hidden>
+    <span class="brand__text" id="brand-text">Born in Monge</span>
+  </button>
+</header>
+
+<main class="stage">
+
+  <section class="view is-active" id="v-intro">
+    <div class="stack">
+      <img class="hero-logo" id="hero-logo" alt="Born in Monge" hidden>
+      <p class="kicker">Mongerbino</p>
+      <h1 class="display">Accedi<br>all'isola.</h1>
+    </div>
+    <div class="act">
+      <button class="cta" type="button" data-go="form">Entra</button>
+    </div>
+  </section>
+
+  <section class="view" id="v-form" hidden>
+    <form id="form" name="contatti" method="POST" data-netlify="true"
+          data-netlify-honeypot="bot-field" novalidate autocomplete="on">
+      <input type="hidden" name="form-name" value="contatti">
+      <input type="hidden" name="premio" value="Sconto 20%">
+      <input type="hidden" name="codice" value="IPPICA2026">
+      <input type="hidden" name="data" value="">
+      <input type="hidden" name="id" value="">
+      <p hidden><label>Lascia vuoto <input name="bot-field"></label></p>
+      <div class="stack stack--left">
+        <h2 class="display display--sm">Lascia<br>i tuoi dati</h2>
+
+        <div class="fields">
+          <div class="field">
+            <label for="nome">Nome</label>
+            <input id="nome" name="nome" type="text" autocomplete="given-name"
+                   autocapitalize="words" autocorrect="off" spellcheck="false"
+                   enterkeyhint="next" maxlength="60">
+          </div>
+          <div class="field">
+            <label for="cognome">Cognome</label>
+            <input id="cognome" name="cognome" type="text" autocomplete="family-name"
+                   autocapitalize="words" autocorrect="off" spellcheck="false"
+                   enterkeyhint="next" maxlength="60">
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" inputmode="email"
+                   autocomplete="email" autocapitalize="off" autocorrect="off"
+                   spellcheck="false" enterkeyhint="done" maxlength="120">
+          </div>
+        </div>
+
+        <label class="consent" for="consenso">
+          <input id="consenso" name="consenso" type="checkbox">
+          <span class="consent__box" aria-hidden="true"></span>
+          <span class="consent__text">
+            Voglio ricevere email e novità da Born in Monge
+            <small>Facoltativo. Se non lo spunti giochi lo stesso e non teniamo i tuoi dati.</small>
+          </span>
+        </label>
+
+        <button class="info" type="button" id="apri-info">Informativa privacy</button>
+
+        <p class="error" id="error" role="alert" hidden></p>
+      </div>
+
+      <div class="act">
+        <button class="cta" type="submit">Avanti</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="view" id="v-draw" hidden>
+    <div class="stack">
+      <h2 class="display display--sm">L'isola<br>decide.</h2>
+      <div class="ring" id="ring" role="img" aria-label="Estrazione"></div>
+    </div>
+    <div class="act"></div>
+  </section>
+
+  <section class="view" id="v-prize" hidden>
+    <div class="stack">
+      <p class="kicker">Hai vinto</p>
+      <h2 class="display">Sconto<br>20%</h2>
+      <p class="code" id="code">IPPICA2026</p>
+      <p class="note">Usalo subito, allo stand o su borninmonge.com</p>
+      <p class="note note--fine">Direttamente da Mongerbino</p>
+    </div>
+    <div class="act">
+      <button class="home" type="button" data-go="intro" aria-label="Torna all'inizio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 10.7 12 3.6l9 7.1"/>
+          <path d="M5.5 9.3V20.4h13V9.3"/>
+          <path d="M9.7 20.4V15h4.6v5.4"/>
+        </svg>
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<div class="progress" aria-hidden="true"><span id="progress"></span></div>
+
+<div class="admin" id="admin" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+    <p class="kicker" id="admin-title">Contatti</p>
+    <p class="tally"><span id="admin-count">0</span></p>
+    <p class="note" id="admin-last"></p>
+    <p class="note note--fine" id="admin-export"></p>
+    <p class="note note--fine" id="admin-coda"></p>
+    <p class="note note--fine" id="admin-stato"></p>
+    <button class="cta cta--scuro" type="button" id="admin-csv">Esporta CSV</button>
+    <p class="note note--fine" id="admin-esito"></p>
+    <button class="quiet" type="button" id="admin-testo">Mostra il testo</button>
+    <div class="dump" id="admin-dump" hidden>
+      <textarea id="admin-dump-testo" readonly rows="7" spellcheck="false"></textarea>
+      <button class="quiet" type="button" id="admin-copia">Copia tutto</button>
+    </div>
+    <button class="quiet" type="button" id="admin-wipe">Svuota elenco</button>
+    <button class="quiet" type="button" id="admin-close">Chiudi</button>
+  </div>
+</div>
+
+<div class="admin" id="info" hidden>
+  <div class="sheet sheet--testo" role="dialog" aria-modal="true" aria-labelledby="info-title">
+    <p class="kicker" id="info-title">Informativa privacy</p>
+    <div class="testo">
+      <p><strong>Titolare del trattamento</strong><br>
+      [RAGIONE SOCIALE], [INDIRIZZO], P.IVA [NUMERO].<br>
+      Per qualsiasi richiesta: [EMAIL PRIVACY].</p>
+
+      <p><strong>Quali dati</strong><br>
+      Nome, cognome e indirizzo email, che lasci tu su questo iPad.</p>
+
+      <p><strong>Perché</strong><br>
+      Per inviarti comunicazioni commerciali, novità e offerte di Born in
+      Monge via email.</p>
+
+      <p><strong>Su quale base</strong><br>
+      Il tuo consenso, articolo 6.1.a del Regolamento UE 2016/679. Il
+      consenso è facoltativo: se non lo dai partecipi lo stesso e vinci lo
+      stesso, e i tuoi dati non vengono conservati.</p>
+
+      <p><strong>Dove finiscono</strong><br>
+      Restano su questo iPad, senza connessione a internet, e vengono poi
+      esportati in un file che resta in mano a [RAGIONE SOCIALE]. Non
+      vengono ceduti a terzi e non escono dallo Spazio Economico Europeo.</p>
+
+      <p><strong>Per quanto tempo</strong><br>
+      Fino a quando revochi il consenso, e comunque non oltre
+      [NUMERO] mesi dalla raccolta.</p>
+
+      <p><strong>I tuoi diritti</strong><br>
+      Puoi chiedere in qualsiasi momento di accedere ai tuoi dati,
+      correggerli, cancellarli, limitarne l'uso, opporti al trattamento o
+      riceverli in formato leggibile. Puoi revocare il consenso quando
+      vuoi, scrivendo a [EMAIL PRIVACY] o dal link di disiscrizione in
+      fondo a ogni email. La revoca non tocca quello che è stato fatto
+      prima.</p>
+
+      <p><strong>Reclami</strong><br>
+      Puoi rivolgerti al Garante per la protezione dei dati personali,
+      www.garanteprivacy.it.</p>
+    </div>
+    <button class="cta cta--scuro" type="button" id="chiudi-info">Ho capito</button>
+  </div>
+</div>
+
+<script src="js/backdrop.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,721 @@
+/* Born in Monge, raccolta contatti da stand.
+ * intro -> dati -> estrazione -> premio -> intro.
+ * Il premio e' fisso: Sconto 20%, IPPICA2026. La biglia vincente e' scelta a
+ * caso solo per l'animazione, non c'e' nessuna estrazione vera.
+ */
+(function () {
+  'use strict';
+
+  var STORE = 'bim-leads';
+  var GIOCATE = 'bim-giocate';     // solo un numero, nessun dato personale
+  var ESPORTO = 'bim-ultimo-csv';
+  var PREMIO = 'Sconto 20%';
+  var CODICE = 'IPPICA2026';
+  var BIGLIE = 8;
+  var IDLE_MS = 45000;
+
+  // tutte nella famiglia del mare, dal fondo alla schiuma
+  var COPPIE = [
+    ['#7FD1D8', '#BFE1F2'], ['#4FB3C9', '#A9E2E8'],
+    ['#BFE1F2', '#6FC4E0'], ['#1B7FA0', '#7FD1D8'],
+    ['#A9E2E8', '#4FB3C9'], ['#6FC4E0', '#BFE1F2'],
+    ['#2E6E8E', '#7FD1D8'], ['#9FD8EC', '#4FB3C9']
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var reduced = window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)')
+    : { matches: false };
+
+  /* --- archivio ------------------------------------------------------- */
+
+  function leggi() {
+    try {
+      var raw = localStorage.getItem(STORE);
+      var l = raw ? JSON.parse(raw) : [];
+      return Array.isArray(l) ? l : [];
+    } catch (e) { return []; }
+  }
+
+  function salva(lead) {
+    var l = leggi();
+    l.push(lead);
+    try {
+      localStorage.setItem(STORE, JSON.stringify(l));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function conta(chiave) {
+    var n = parseInt(localStorage.getItem(chiave), 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  // quante partite in tutto, consenso o no: e' un numero, non un dato personale
+  function segnaGiocata() {
+    try { localStorage.setItem(GIOCATE, String(conta(GIOCATE) + 1)); } catch (e) {}
+  }
+
+  /* --- CSV ------------------------------------------------------------- */
+
+  // punto e virgola: e' il separatore che Excel in italiano si aspetta
+  function cella(v) {
+    var s = v === null || v === undefined ? '' : String(v);
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function csv(list) {
+    var righe = [['Data', 'Ora', 'Nome', 'Cognome', 'Email',
+                  'Consenso marketing', 'Premio', 'Codice', 'Inviato'].join(';')];
+    list.forEach(function (l) {
+      var d = new Date(l.ts);
+      var ok = !isNaN(d.getTime());
+      righe.push([
+        ok ? d.toLocaleDateString('it-IT') : '',
+        ok ? d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '',
+        l.nome, l.cognome, l.email,
+        l.consenso ? 'SI' : 'NO', l.premio || PREMIO, l.codice || CODICE,
+        l.inviato ? 'SI' : 'NO'
+      ].map(cella).join(';'));
+    });
+    return '﻿' + righe.join('\r\n') + '\r\n';   // BOM per Excel
+  }
+
+  function nomeFile() {
+    var d = new Date();
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return 'bim-leads-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' +
+           p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + '.csv';
+  }
+
+  function scaricaBlob(blob, nome) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  /* Su iPad, con la app installata da Home, un download avviato da script
+   * spesso non fa niente. Il foglio di condivisione invece funziona e porta
+   * dritto ad AirDrop, Mail o File, quindi si prova prima quello. */
+  function esporta(list, esito) {
+    var nome = nomeFile();
+    var testo = csv(list);
+    var blob = new Blob([testo], { type: 'text/csv;charset=utf-8' });
+    var file = null;
+    try { file = new File([blob], nome, { type: 'text/csv' }); } catch (e) {}
+
+    if (file && navigator.share && navigator.canShare &&
+        navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: nome }).then(function () {
+        esito(true, 'Condiviso');
+      }, function (err) {
+        // se l'utente annulla non e' un errore e non si ripiega sul download
+        if (err && err.name === 'AbortError') { esito(false, ''); return; }
+        scaricaBlob(blob, nome);
+        esito(true, 'Scaricato in File');
+      });
+      return;
+    }
+
+    scaricaBlob(blob, nome);
+    esito(true, 'Scaricato in File');
+  }
+
+  /* --- invio a Netlify, con coda ---------------------------------------- */
+
+  /* Netlify raccoglie i moduli dal form statico in index.html. Qui il modulo
+   * non parte da solo, quindi si spedisce a mano lo stesso contenuto.
+   * Se la rete manca il contatto resta in coda e riparte da solo dopo: allo
+   * stand la connessione va e viene, e un contatto perso non si recupera. */
+  function corpo(lead) {
+    var campi = {
+      'form-name': 'contatti',
+      nome: lead.nome,
+      cognome: lead.cognome,
+      email: lead.email,
+      consenso: lead.consenso ? 'SI' : 'NO',
+      premio: lead.premio || PREMIO,
+      codice: lead.codice || CODICE,
+      data: lead.ts,
+      id: lead.id
+    };
+    var parti = [];
+    for (var k in campi) {
+      parti.push(encodeURIComponent(k) + '=' + encodeURIComponent(campi[k]));
+    }
+    return parti.join('&');
+  }
+
+  function spedisci(lead) {
+    if (!window.fetch) return Promise.reject(new Error('niente fetch'));
+    var taglio;
+    var scaduto = new Promise(function (_, no) {
+      taglio = setTimeout(function () { no(new Error('tempo scaduto')); }, 12000);
+    });
+    var invio = fetch(location.pathname, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: corpo(lead)
+    }).then(function (r) {
+      if (!r.ok) throw new Error('risposta ' + r.status);
+      return true;
+    });
+    return Promise.race([invio, scaduto]).then(function (v) {
+      clearTimeout(taglio);
+      return v;
+    }, function (e) {
+      clearTimeout(taglio);
+      throw e;
+    });
+  }
+
+  function segnaInviato(id) {
+    var l = leggi();
+    for (var i = 0; i < l.length; i++) {
+      if (l[i].id === id) { l[i].inviato = true; break; }
+    }
+    try { localStorage.setItem(STORE, JSON.stringify(l)); } catch (e) {}
+  }
+
+  function inCoda() {
+    return leggi().filter(function (x) { return x.consenso && !x.inviato; });
+  }
+
+  var svuotando = false;
+
+  // uno alla volta e in ordine: se cade la rete si riprende da dove eravamo
+  function inRete() {
+    return location.protocol === 'http:' || location.protocol === 'https:';
+  }
+
+  function svuotaCoda() {
+    // aperta come file locale non c'e' nessun Netlify a cui spedire
+    if (svuotando || !navigator.onLine || !inRete()) return Promise.resolve();
+    var coda = inCoda();
+    if (!coda.length) return Promise.resolve();
+    svuotando = true;
+
+    return coda.reduce(function (prima, lead) {
+      return prima.then(function (continua) {
+        if (!continua) return false;
+        return spedisci(lead).then(function () {
+          segnaInviato(lead.id);
+          return true;
+        }, function () {
+          return false;               // resta in coda, si riprova dopo
+        });
+      });
+    }, Promise.resolve(true)).then(function () {
+      svuotando = false;
+      if (!admin.hidden) aggiornaConti();
+    }, function () {
+      svuotando = false;
+    });
+  }
+
+  window.addEventListener('online', function () { svuotaCoda(); });
+
+  /* --- schermate -------------------------------------------------------- */
+
+  var viste = {
+    intro: $('v-intro'), form: $('v-form'),
+    draw: $('v-draw'), prize: $('v-prize')
+  };
+  var AVANZAMENTO = { intro: 0, form: 34, draw: 67, prize: 100 };
+  var corrente = 'intro';
+  var idle = 0;
+
+  function vai(nome) {
+    if (!viste[nome] || nome === corrente) return;
+    var da = viste[corrente];
+    var a = viste[nome];
+
+    da.classList.remove('is-active');
+    a.hidden = false;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { a.classList.add('is-active'); });
+    });
+    setTimeout(function () {
+      if (!da.classList.contains('is-active')) da.hidden = true;
+    }, 380);
+
+    corrente = nome;
+    $('progress').style.width = AVANZAMENTO[nome] + '%';
+    riarma();
+
+    if (nome === 'prize') registra();
+    if (nome === 'draw') preparaGiro();
+    if (nome === 'intro') azzeraForm();
+  }
+
+  // allo stand nessuno torna indietro da solo: dopo un po' si riparte
+  function riarma() {
+    clearTimeout(idle);
+    if (corrente !== 'intro') idle = setTimeout(function () { vai('intro'); }, IDLE_MS);
+  }
+
+  /* --- form -------------------------------------------------------------- */
+
+  var form = $('form');
+  var errore = $('error');
+  var inSospeso = null;
+
+  function segna(el, bad) {
+    var w = el.closest('.field') || el.closest('.consent');
+    if (w) w.classList.toggle('is-bad', bad);
+  }
+
+  function stop(msg, el) {
+    errore.textContent = msg;
+    errore.hidden = false;
+    if (el) { segna(el, true); el.focus(); }
+  }
+
+  function azzeraForm() {
+    form.reset();
+    errore.hidden = true;
+    Array.prototype.forEach.call(form.querySelectorAll('.is-bad'),
+      function (n) { n.classList.remove('is-bad'); });
+    inSospeso = null;
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var nome = form.nome.value.trim();
+    var cognome = form.cognome.value.trim();
+    var email = form.email.value.trim();
+
+    [form.nome, form.cognome, form.email, form.consenso]
+      .forEach(function (el) { segna(el, false); });
+    errore.hidden = true;
+
+    if (!nome) return stop('Manca il nome', form.nome);
+    if (!cognome) return stop('Manca il cognome', form.cognome);
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return stop('Email non valida', form.email);
+
+    // il consenso non e' una condizione per giocare: se manca, si gioca lo
+    // stesso e non si conserva niente. Un consenso obbligato per partecipare
+    // non e' liberamente prestato e non varrebbe (art. 7.4 GDPR).
+    inSospeso = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+      nome: nome, cognome: cognome, email: email.toLowerCase(),
+      consenso: form.consenso.checked, premio: PREMIO, codice: CODICE,
+      ts: new Date().toISOString()
+    };
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    vai('draw');
+  });
+
+  form.addEventListener('input', function (e) {
+    segna(e.target, false);
+    errore.hidden = true;
+    riarma();
+  });
+
+  var registrato = null;
+
+  function registra() {
+    if (!inSospeso || registrato === inSospeso.id) return;
+    registrato = inSospeso.id;
+    segnaGiocata();
+    if (!inSospeso.consenso) return;     // senza consenso non si conserva
+    inSospeso.inviato = false;
+    if (!salva(inSospeso)) {
+      // se non si salva, non lo si nasconde
+      var c = $('code');
+      c.textContent = 'NON SALVATO';
+      c.style.background = '#C0392F';
+      setTimeout(function () { c.textContent = CODICE; c.style.background = ''; }, 6000);
+      return;
+    }
+    svuotaCoda();
+  }
+
+  /* --- biglie ------------------------------------------------------------ */
+
+  var ring = $('ring');
+  var biglie = [];
+  var giroRaf = 0;
+
+  var PASSO = Math.PI * 2 / BIGLIE;
+  var GIRO = Math.PI * 2;
+
+  // la corsa e' divisa in tempi, non e' una sola discesa: prima pensa, poi
+  // lancia, frena a lungo, si ferma quasi sulla biglia sbagliata e scatta di
+  // una posizione. E' li' che sta la sorpresa.
+  var FASI = { pensa: 1500, lancia: 1800, frena: 3400, sospeso: 700, scatto: 1100, respiro: 480 };
+  var PICCO = 0.85;     // giri al secondo nel tratto veloce
+  var RAMPA = 0.55;     // quota della fase di lancio usata per accelerare
+  var DERIVA = 0.10;    // giri al secondo mentre sta ancora pensando
+
+  function costruisci() {
+    for (var i = 0; i < BIGLIE; i++) {
+      var m = document.createElement('div');
+      m.className = 'marble';
+      m.style.setProperty('--b1', COPPIE[i % COPPIE.length][0]);
+      m.style.setProperty('--b2', COPPIE[i % COPPIE.length][1]);
+      m.innerHTML = '<div class="marble__blobs"></div><div class="marble__gloss"></div>';
+      ring.appendChild(m);
+      biglie.push(m);
+    }
+  }
+
+  function raggio() { return ring.clientWidth * 0.38; }
+
+  function disponi(base, r, scale) {
+    for (var i = 0; i < biglie.length; i++) {
+      var ang = base + i * PASSO;
+      var sc = typeof scale === 'number' ? scale : scale[i];
+      biglie[i].style.transform =
+        'translate3d(' + (Math.cos(ang) * r).toFixed(2) + 'px,' +
+        (Math.sin(ang) * r).toFixed(2) + 'px,0) scale(' + sc.toFixed(3) + ')';
+    }
+  }
+
+  // porta la biglia i in cima al cerchio
+  function cima(i) { return -Math.PI / 2 - i * PASSO; }
+
+  // luce che gira intorno all'anello: si vede che sta decidendo
+  function battito(t) {
+    var out = [];
+    for (var i = 0; i < BIGLIE; i++) {
+      var u = (t / 780 - i / BIGLIE) % 1;
+      if (u < 0) u += 1;
+      if (u > 0.5) u -= 1;
+      out.push(1 + 0.15 * Math.exp(-(u / 0.12) * (u / 0.12)));
+    }
+    return out;
+  }
+
+  // integrale della rampa di velocita', per avere l'angolo senza accumulare
+  function percorso(k) {
+    if (k >= RAMPA) return RAMPA / 2 + (k - RAMPA);
+    return k * k * k / (RAMPA * RAMPA) - k * k * k * k / (2 * RAMPA * RAMPA * RAMPA);
+  }
+
+  function preparaGiro() {
+    if (giroRaf) { cancelAnimationFrame(giroRaf); giroRaf = 0; }
+    biglie.forEach(function (m) {
+      m.classList.remove('is-out');
+      m.style.transition = '';
+      m.style.opacity = '';
+    });
+    disponi(cima(0), raggio(), 1);
+    setTimeout(gira, 420);
+  }
+
+  function gira() {
+    if (corrente !== 'draw') return;
+    var vincente = Math.floor(Math.random() * BIGLIE);
+    if (reduced.matches) return giroFermo(vincente);
+
+    var durL = FASI.lancia / 1000;
+    var durF = FASI.frena / 1000;
+    // easeOutQuint parte con pendenza 5, quindi la frenata copre sempre
+    // questo arco: e' da qui che si ricava dove deve iniziare
+    var arcoF = PICCO * durF / 5;
+
+    var A0 = cima(0);
+    var A1 = A0 + DERIVA * GIRO * (FASI.pensa / 1000);
+    var A2 = A1 + DERIVA * GIRO * durL
+                + (PICCO - DERIVA) * GIRO * durL * percorso(1);
+    // la corsa piena si allunga quel tanto che basta perche' la frenata
+    // cominci esattamente alla velocita' con cui e' finito il lancio:
+    // arrotondare il bersaglio al giro intero faceva ripartire in accelerazione
+    var fase = cima(vincente + 1) - arcoF * GIRO;
+    var A3 = fase + GIRO * Math.ceil((A2 - fase) / GIRO);
+    var attesa = (A3 - A2) / (PICCO * GIRO) * 1000;
+    var bersaglio = A3 + arcoF * GIRO;
+
+    var t1 = FASI.pensa;
+    var t2 = t1 + FASI.lancia;
+    var t3 = t2 + attesa;
+    var t4 = t3 + FASI.frena;
+    var t5 = t4 + FASI.sospeso;
+    var t6 = t5 + FASI.scatto;
+    var t7 = t6 + FASI.respiro;
+    var t0 = performance.now();
+
+    function passo(now) {
+      var t = now - t0;
+      var ang, scale = 1, veloce = 0;
+
+      if (t < t1) {
+        ang = A0 + DERIVA * GIRO * (t / 1000);
+        scale = battito(t);
+
+      } else if (t < t2) {
+        var k = (t - t1) / FASI.lancia;
+        ang = A1 + DERIVA * GIRO * ((t - t1) / 1000)
+                 + (PICCO - DERIVA) * GIRO * durL * percorso(k);
+        veloce = Math.min(k / RAMPA, 1);
+
+      } else if (t < t3) {
+        ang = A2 + PICCO * GIRO * ((t - t2) / 1000);
+        veloce = 1;
+
+      } else if (t < t4) {
+        var f = (t - t3) / FASI.frena;
+        ang = A3 + (bersaglio - A3) * (1 - Math.pow(1 - f, 5));
+        veloce = Math.pow(1 - f, 4);
+
+      } else if (t < t5) {
+        ang = bersaglio;                       // quasi. non ancora
+
+      } else if (t < t6) {
+        var c = (t - t5) / FASI.scatto;
+        ang = bersaglio + PASSO *
+              (c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2);
+
+      } else {
+        ang = bersaglio + PASSO;
+      }
+
+      // nel tratto veloce il cerchio si allarga appena, come per la forza
+      disponi(ang, raggio() * (1 + 0.045 * veloce), scale);
+
+      if (t < t7) {
+        giroRaf = requestAnimationFrame(passo);
+      } else {
+        giroRaf = 0;
+        rivela(vincente);
+      }
+    }
+    giroRaf = requestAnimationFrame(passo);
+  }
+
+  // moto ridotto: niente rotazione, ma gli stessi tempi, cosi' non sembra
+  // che il risultato fosse gia' deciso
+  function giroFermo(vincente) {
+    var t0 = performance.now();
+    function passo(now) {
+      var t = now - t0;
+      disponi(cima(0), raggio(), battito(t));
+      if (t < 1100) giroRaf = requestAnimationFrame(passo);
+      else { giroRaf = 0; setTimeout(function () { rivela(vincente); }, 380); }
+    }
+    giroRaf = requestAnimationFrame(passo);
+  }
+
+  function rivela(vincente) {
+    biglie.forEach(function (m, i) {
+      if (i === vincente) {
+        m.style.transition = 'transform .9s cubic-bezier(.16,.84,.28,1)';
+        m.style.transform = 'translate3d(0,0,0) scale(2.1)';
+      } else {
+        m.classList.add('is-out');
+      }
+    });
+    setTimeout(function () { vai('prize'); }, reduced.matches ? 700 : 1050);
+  }
+
+  window.addEventListener('resize', function () {
+    if (corrente === 'draw' && !giroRaf) disponi(cima(0), raggio(), 1);
+    riarma();
+  });
+
+  /* --- navigazione -------------------------------------------------------- */
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-go]');
+    if (b) vai(b.getAttribute('data-go'));
+  });
+
+  ['pointerdown', 'keydown'].forEach(function (ev) {
+    document.addEventListener(ev, riarma, { passive: true });
+  });
+
+  /* --- area riservata: cinque tocchi sul marchio --------------------------- */
+
+  var admin = $('admin');
+  var tocchi = 0;
+  var tocchiT = 0;
+
+  $('brand').addEventListener('click', function () {
+    tocchi++;
+    clearTimeout(tocchiT);
+    tocchiT = setTimeout(function () { tocchi = 0; }, 1600);
+    if (tocchi >= 5) { tocchi = 0; apri(); }
+  });
+
+  function aggiornaConti() {
+    var l = leggi();
+    $('admin-count').textContent = String(l.length);
+    var u = l[l.length - 1];
+    var d = u ? new Date(u.ts) : null;
+    $('admin-last').textContent = d && !isNaN(d.getTime())
+      ? 'Ultimo ' + d.toLocaleString('it-IT') : 'Elenco vuoto';
+
+    // quello che non e' ancora uscito dall'iPad e' quello che si puo' perdere
+    var fatte = conta(GIOCATE);
+    var esportati = conta(ESPORTO);
+    var restano = Math.max(l.length - esportati, 0);
+    $('admin-export').textContent = l.length
+      ? (restano ? restano + ' da esportare, ' + fatte + ' partite in tutto'
+                 : 'tutti esportati, ' + fatte + ' partite in tutto')
+      : (fatte ? fatte + ' partite, nessun consenso' : '');
+
+    var coda = inCoda().length;
+    $('admin-coda').textContent = coda
+      ? coda + (coda === 1 ? ' non ancora inviato online' : ' non ancora inviati online')
+      : (l.length ? 'tutti inviati online' : '');
+    diagnostica();
+  }
+
+  // dice se l'offline e' davvero pronto, invece di lasciarlo indovinare
+  function diagnostica() {
+    var riga = $('admin-stato');
+    var voci = [navigator.onLine ? 'in rete' : 'senza rete'];
+    voci.push(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches
+      ? 'installata' : 'in Safari');
+
+    if (!('serviceWorker' in navigator)) {
+      riga.textContent = voci.concat('offline non disponibile').join(', ');
+      return;
+    }
+    riga.textContent = voci.concat('controllo offline').join(', ');
+    Promise.all([
+      navigator.serviceWorker.getRegistration(),
+      window.caches ? caches.keys() : Promise.resolve([])
+    ]).then(function (r) {
+      var attivo = !!(r[0] && r[0].active);
+      var cache = r[1].length > 0;
+      riga.textContent = voci.concat(
+        attivo && cache ? 'offline pronto'
+                        : (attivo ? 'offline a meta, ricarica' : 'offline non attivo')
+      ).join(', ');
+    }, function () {
+      riga.textContent = voci.concat('offline non verificabile').join(', ');
+    });
+  }
+
+  function apri() {
+    aggiornaConti();
+    $('admin-esito').textContent = '';
+    $('admin-dump').hidden = true;
+    $('admin-testo').textContent = 'Mostra il testo';
+    admin.hidden = false;
+    clearTimeout(idle);
+  }
+
+  function chiudiAdmin() { admin.hidden = true; riarma(); }
+
+  $('admin-close').addEventListener('click', chiudiAdmin);
+  admin.addEventListener('click', function (e) { if (e.target === admin) chiudiAdmin(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!admin.hidden) chiudiAdmin();
+    if (!info.hidden) chiudiInfo();
+  });
+
+  var esito = $('admin-esito');
+
+  $('admin-csv').addEventListener('click', function () {
+    var l = leggi();
+    if (!l.length) { esito.textContent = 'Elenco vuoto'; return; }
+    esporta(l, function (fatto, messaggio) {
+      esito.textContent = messaggio;
+      if (!fatto) return;
+      try { localStorage.setItem(ESPORTO, String(l.length)); } catch (e) {}
+      aggiornaConti();
+    });
+  });
+
+  $('admin-testo').addEventListener('click', function () {
+    var box = $('admin-dump');
+    var l = leggi();
+    if (!l.length) { esito.textContent = 'Elenco vuoto'; return; }
+    box.hidden = !box.hidden;
+    this.textContent = box.hidden ? 'Mostra il testo' : 'Nascondi il testo';
+    if (!box.hidden) $('admin-dump-testo').value = csv(l);
+  });
+
+  $('admin-copia').addEventListener('click', function () {
+    var area = $('admin-dump-testo');
+    area.focus();
+    area.setSelectionRange(0, area.value.length);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    if (!ok && navigator.clipboard) {
+      navigator.clipboard.writeText(area.value).then(function () {
+        esito.textContent = 'Copiato';
+      }, function () {
+        esito.textContent = 'Copia a mano, il testo e\' selezionato';
+      });
+      return;
+    }
+    esito.textContent = ok ? 'Copiato' : 'Copia a mano, il testo e\' selezionato';
+  });
+
+  var armato = false;
+  var armatoT = 0;
+  $('admin-wipe').addEventListener('click', function () {
+    var b = this;
+    if (!armato) {
+      armato = true;
+      b.textContent = 'Tocca ancora per cancellare';
+      armatoT = setTimeout(function () { armato = false; b.textContent = 'Svuota elenco'; }, 4000);
+      return;
+    }
+    clearTimeout(armatoT);
+    armato = false;
+    b.textContent = 'Svuota elenco';
+    try {
+      localStorage.removeItem(STORE);
+      localStorage.removeItem(ESPORTO);
+    } catch (e) {}
+    apri();
+  });
+
+  /* --- informativa ---------------------------------------------------------- */
+
+  var info = $('info');
+
+  function chiudiInfo() { info.hidden = true; riarma(); }
+
+  $('apri-info').addEventListener('click', function () {
+    info.hidden = false;
+    clearTimeout(idle);
+  });
+  $('chiudi-info').addEventListener('click', chiudiInfo);
+  info.addEventListener('click', function (e) { if (e.target === info) chiudiInfo(); });
+
+  /* --- logo opzionale ------------------------------------------------------ */
+
+  // se assets/logo.png esiste prende il posto della scritta, in alto e nella
+  // schermata di attesa, senza toccare nulla
+  (function () {
+    var probe = new Image();
+    probe.onload = function () {
+      var img = $('brand-img');
+      img.src = probe.src;
+      img.hidden = false;
+      $('brand-text').hidden = true;
+      var hero = $('hero-logo');
+      hero.src = probe.src;
+      hero.hidden = false;
+    };
+    probe.src = 'assets/logo.png';
+  }());
+
+  /* --- avvio --------------------------------------------------------------- */
+
+  costruisci();
+  $('progress').style.width = '0%';
+
+  if (window.BimBackdrop) new window.BimBackdrop($('bg')).start();
+
+  svuotaCoda();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+}());
