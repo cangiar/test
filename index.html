@@ -41,7 +41,14 @@
   </section>
 
   <section class="view" id="v-form" hidden>
-    <form id="form" novalidate autocomplete="on">
+    <form id="form" name="contatti" method="POST" data-netlify="true"
+          data-netlify-honeypot="bot-field" novalidate autocomplete="on">
+      <input type="hidden" name="form-name" value="contatti">
+      <input type="hidden" name="premio" value="Sconto 20%">
+      <input type="hidden" name="codice" value="IPPICA2026">
+      <input type="hidden" name="data" value="">
+      <input type="hidden" name="id" value="">
+      <p hidden><label>Lascia vuoto <input name="bot-field"></label></p>
       <div class="stack stack--left">
         <h2 class="display display--sm">Lascia<br>i tuoi dati</h2>
 
@@ -124,6 +131,8 @@
     <p class="tally"><span id="admin-count">0</span></p>
     <p class="note" id="admin-last"></p>
     <p class="note note--fine" id="admin-export"></p>
+    <p class="note note--fine" id="admin-coda"></p>
+    <p class="note note--fine" id="admin-stato"></p>
     <button class="cta cta--scuro" type="button" id="admin-csv">Esporta CSV</button>
     <p class="note note--fine" id="admin-esito"></p>
     <button class="quiet" type="button" id="admin-testo">Mostra il testo</button>

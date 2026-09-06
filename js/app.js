@@ -66,7 +66,7 @@
 
   function csv(list) {
     var righe = [['Data', 'Ora', 'Nome', 'Cognome', 'Email',
-                  'Consenso marketing', 'Premio', 'Codice'].join(';')];
+                  'Consenso marketing', 'Premio', 'Codice', 'Inviato'].join(';')];
     list.forEach(function (l) {
       var d = new Date(l.ts);
       var ok = !isNaN(d.getTime());
@@ -74,7 +74,8 @@
         ok ? d.toLocaleDateString('it-IT') : '',
         ok ? d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) : '',
         l.nome, l.cognome, l.email,
-        l.consenso ? 'SI' : 'NO', l.premio || PREMIO, l.codice || CODICE
+        l.consenso ? 'SI' : 'NO', l.premio || PREMIO, l.codice || CODICE,
+        l.inviato ? 'SI' : 'NO'
       ].map(cella).join(';'));
     });
     return '﻿' + righe.join('\r\n') + '\r\n';   // BOM per Excel
@@ -125,6 +126,100 @@
     scaricaBlob(blob, nome);
     esito(true, 'Scaricato in File');
   }
+
+  /* --- invio a Netlify, con coda ---------------------------------------- */
+
+  /* Netlify raccoglie i moduli dal form statico in index.html. Qui il modulo
+   * non parte da solo, quindi si spedisce a mano lo stesso contenuto.
+   * Se la rete manca il contatto resta in coda e riparte da solo dopo: allo
+   * stand la connessione va e viene, e un contatto perso non si recupera. */
+  function corpo(lead) {
+    var campi = {
+      'form-name': 'contatti',
+      nome: lead.nome,
+      cognome: lead.cognome,
+      email: lead.email,
+      consenso: lead.consenso ? 'SI' : 'NO',
+      premio: lead.premio || PREMIO,
+      codice: lead.codice || CODICE,
+      data: lead.ts,
+      id: lead.id
+    };
+    var parti = [];
+    for (var k in campi) {
+      parti.push(encodeURIComponent(k) + '=' + encodeURIComponent(campi[k]));
+    }
+    return parti.join('&');
+  }
+
+  function spedisci(lead) {
+    if (!window.fetch) return Promise.reject(new Error('niente fetch'));
+    var taglio;
+    var scaduto = new Promise(function (_, no) {
+      taglio = setTimeout(function () { no(new Error('tempo scaduto')); }, 12000);
+    });
+    var invio = fetch(location.pathname, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: corpo(lead)
+    }).then(function (r) {
+      if (!r.ok) throw new Error('risposta ' + r.status);
+      return true;
+    });
+    return Promise.race([invio, scaduto]).then(function (v) {
+      clearTimeout(taglio);
+      return v;
+    }, function (e) {
+      clearTimeout(taglio);
+      throw e;
+    });
+  }
+
+  function segnaInviato(id) {
+    var l = leggi();
+    for (var i = 0; i < l.length; i++) {
+      if (l[i].id === id) { l[i].inviato = true; break; }
+    }
+    try { localStorage.setItem(STORE, JSON.stringify(l)); } catch (e) {}
+  }
+
+  function inCoda() {
+    return leggi().filter(function (x) { return x.consenso && !x.inviato; });
+  }
+
+  var svuotando = false;
+
+  // uno alla volta e in ordine: se cade la rete si riprende da dove eravamo
+  function inRete() {
+    return location.protocol === 'http:' || location.protocol === 'https:';
+  }
+
+  function svuotaCoda() {
+    // aperta come file locale non c'e' nessun Netlify a cui spedire
+    if (svuotando || !navigator.onLine || !inRete()) return Promise.resolve();
+    var coda = inCoda();
+    if (!coda.length) return Promise.resolve();
+    svuotando = true;
+
+    return coda.reduce(function (prima, lead) {
+      return prima.then(function (continua) {
+        if (!continua) return false;
+        return spedisci(lead).then(function () {
+          segnaInviato(lead.id);
+          return true;
+        }, function () {
+          return false;               // resta in coda, si riprova dopo
+        });
+      });
+    }, Promise.resolve(true)).then(function () {
+      svuotando = false;
+      if (!admin.hidden) aggiornaConti();
+    }, function () {
+      svuotando = false;
+    });
+  }
+
+  window.addEventListener('online', function () { svuotaCoda(); });
 
   /* --- schermate -------------------------------------------------------- */
 
@@ -230,13 +325,16 @@
     registrato = inSospeso.id;
     segnaGiocata();
     if (!inSospeso.consenso) return;     // senza consenso non si conserva
+    inSospeso.inviato = false;
     if (!salva(inSospeso)) {
       // se non si salva, non lo si nasconde
       var c = $('code');
       c.textContent = 'NON SALVATO';
       c.style.background = '#C0392F';
       setTimeout(function () { c.textContent = CODICE; c.style.background = ''; }, 6000);
+      return;
     }
+    svuotaCoda();
   }
 
   /* --- biglie ------------------------------------------------------------ */
@@ -462,6 +560,39 @@
       ? (restano ? restano + ' da esportare, ' + fatte + ' partite in tutto'
                  : 'tutti esportati, ' + fatte + ' partite in tutto')
       : (fatte ? fatte + ' partite, nessun consenso' : '');
+
+    var coda = inCoda().length;
+    $('admin-coda').textContent = coda
+      ? coda + (coda === 1 ? ' non ancora inviato online' : ' non ancora inviati online')
+      : (l.length ? 'tutti inviati online' : '');
+    diagnostica();
+  }
+
+  // dice se l'offline e' davvero pronto, invece di lasciarlo indovinare
+  function diagnostica() {
+    var riga = $('admin-stato');
+    var voci = [navigator.onLine ? 'in rete' : 'senza rete'];
+    voci.push(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches
+      ? 'installata' : 'in Safari');
+
+    if (!('serviceWorker' in navigator)) {
+      riga.textContent = voci.concat('offline non disponibile').join(', ');
+      return;
+    }
+    riga.textContent = voci.concat('controllo offline').join(', ');
+    Promise.all([
+      navigator.serviceWorker.getRegistration(),
+      window.caches ? caches.keys() : Promise.resolve([])
+    ]).then(function (r) {
+      var attivo = !!(r[0] && r[0].active);
+      var cache = r[1].length > 0;
+      riga.textContent = voci.concat(
+        attivo && cache ? 'offline pronto'
+                        : (attivo ? 'offline a meta, ricarica' : 'offline non attivo')
+      ).join(', ');
+    }, function () {
+      riga.textContent = voci.concat('offline non verificabile').join(', ');
+    });
   }
 
   function apri() {
@@ -579,6 +710,8 @@
   $('progress').style.width = '0%';
 
   if (window.BimBackdrop) new window.BimBackdrop($('bg')).start();
+
+  svuotaCoda();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

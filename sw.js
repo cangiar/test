@@ -1,7 +1,7 @@
 /* Offline per lo stand: dopo il primo caricamento l'iPad non ha piu' bisogno
  * di rete. Alzare CACHE a ogni deploy, altrimenti resta la versione vecchia.
  */
-var CACHE = 'bim-v2';
+var CACHE = 'bim-v3';
 
 var SHELL = [
   './',
